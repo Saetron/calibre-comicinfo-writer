@@ -453,11 +453,7 @@ def generate_comicinfo_xml(data, existing_xml_content=None, merge=True, unmapped
     )
 
     # Output tags strictly following schema order
-    ordered_tag_names = [t[0] for t in COMICINFO_TAG_DEFS]
-    # Also handle any extra preserved tags (e.g. Pages)
-    all_known_tags = set(ordered_tag_names)
-
-    for tag_name in ordered_tag_names:
+    for tag_name in ORDERED_TAG_NAMES:
         if tag_name in data:
             val = data[tag_name]
             elem = ET.SubElement(root, tag_name)
@@ -467,21 +463,12 @@ def generate_comicinfo_xml(data, existing_xml_content=None, merge=True, unmapped
 
     # Append any remaining preserved elements not in COMICINFO_TAG_DEFS (e.g. <Pages>)
     for tag_name, elem in preserved_elements.items():
-        if tag_name not in all_known_tags:
+        if tag_name not in ALL_KNOWN_TAGS:
             root.append(elem)
 
-    # Format XML with indentation
-    rough_string = ET.tostring(root, "utf-8")
-    try:
-        reparsed = minidom.parseString(rough_string)
-        # Use toprettyxml with 2 spaces
-        pretty_xml = reparsed.toprettyxml(indent="  ", encoding="utf-8")
-        # Remove empty lines that minidom sometimes generates
-        lines = [line for line in pretty_xml.splitlines() if line.strip()]
-        return b"\n".join(lines) + b"\n"
-    except Exception:
-        # Fallback to direct string if minidom fails
-        return b'<?xml version="1.0" encoding="utf-8"?>\n' + rough_string
+    # Format XML with 2-space indentation using stdlib ET.indent
+    ET.indent(root, space="  ")
+    return b'<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(root, encoding="utf-8") + b"\n"
 
 
 def is_comicinfo_path(path):
@@ -496,6 +483,26 @@ def is_comicinfo_path(path):
     return base in ("comicinfo.xml", "comicinfo")
 
 
+def _find_comicinfo_entry(zf):
+    """
+    Locate the best ComicInfo.xml ZipInfo entry inside an open ZipFile.
+    Searches root level first, then any nested subdirectory.
+    """
+    root_candidate = None
+    nested_candidate = None
+    for item in zf.infolist():
+        clean = item.filename.replace("\\", "/").rstrip("/")
+        if "__macosx" in clean.lower():
+            continue
+        if is_comicinfo_path(clean):
+            if "/" not in clean:
+                root_candidate = item
+                break
+            elif nested_candidate is None:
+                nested_candidate = item
+    return root_candidate or nested_candidate
+
+
 def find_comicinfo_in_cbz(cbz_path):
     """
     Locate and read ComicInfo.xml from a CBZ archive.
@@ -507,20 +514,7 @@ def find_comicinfo_in_cbz(cbz_path):
 
     try:
         with zipfile.ZipFile(cbz_path, "r") as zf:
-            root_candidate = None
-            nested_candidate = None
-            for item in zf.infolist():
-                clean = item.filename.replace("\\", "/").rstrip("/")
-                if "__macosx" in clean.lower():
-                    continue
-                if is_comicinfo_path(clean):
-                    if "/" not in clean:
-                        root_candidate = item
-                        break
-                    elif nested_candidate is None:
-                        nested_candidate = item
-
-            chosen = root_candidate or nested_candidate
+            chosen = _find_comicinfo_entry(zf)
             if chosen:
                 return zf.read(chosen.filename), chosen.filename
     except Exception:
@@ -553,17 +547,24 @@ def parse_comicinfo_xml(xml_bytes):
     for child in root:
         tag = child.tag
         if tag == "Pages":
-            pages_list = []
-            for page_elem in child:
-                pages_list.append(dict(page_elem.attrib))
-            result["Pages"] = pages_list
+            result["Pages"] = [dict(page_elem.attrib) for page_elem in child]
         else:
             text = child.text
             if text is not None:
-                text = text.strip()
-                result[tag] = text
+                result[tag] = text.strip()
 
     return result
+
+
+_DIRECT_STR_FIELDS = frozenset({
+    "title",
+    "title_sort",
+    "series",
+    "series_sort",
+    "author_sort",
+    "comments",
+    "publisher",
+})
 
 
 def apply_comicinfo_to_calibre_metadata(mi, parsed_tags, mappings=None):
@@ -582,18 +583,12 @@ def apply_comicinfo_to_calibre_metadata(mi, parsed_tags, mappings=None):
             continue
 
         val_str = parsed_tags[tag_name]
-        if val_str is None or val_str == "":
+        if not val_str:
             continue
 
-        # Standard fields
-        if field_name == "title":
-            mi.title = val_str
-        elif field_name == "title_sort":
-            mi.title_sort = val_str
-        elif field_name == "series":
-            mi.series = val_str
-        elif field_name == "series_sort":
-            mi.series_sort = val_str
+        # Standard string fields
+        if field_name in _DIRECT_STR_FIELDS:
+            setattr(mi, field_name, val_str)
         elif field_name == "series_index":
             try:
                 mi.series_index = float(val_str)
@@ -603,12 +598,6 @@ def apply_comicinfo_to_calibre_metadata(mi, parsed_tags, mappings=None):
             authors = [a.strip() for a in val_str.split(",") if a.strip()]
             if authors:
                 mi.authors = authors
-        elif field_name == "author_sort":
-            mi.author_sort = val_str
-        elif field_name == "comments":
-            mi.comments = val_str
-        elif field_name == "publisher":
-            mi.publisher = val_str
         elif field_name == "tags":
             tags = [t.strip() for t in val_str.split(",") if t.strip()]
             if tags:
@@ -679,7 +668,8 @@ def apply_comicinfo_to_calibre_metadata(mi, parsed_tags, mappings=None):
                         pass
                 if "Day" in parsed_tags:
                     try:
-                        day_int = max(1, min(31, int(parsed_tags["Day"])))
+                        max_day = calendar.monthrange(year_int, month_int)[1]
+                        day_int = max(1, min(max_day, int(parsed_tags["Day"])))
                     except (ValueError, TypeError):
                         pass
                 mi.pubdate = datetime(year_int, month_int, day_int)
@@ -687,6 +677,20 @@ def apply_comicinfo_to_calibre_metadata(mi, parsed_tags, mappings=None):
             pass
 
     return mi
+
+
+def _merge_xml_bytes(comicinfo_xml_bytes, existing_xml, unmapped_tags=None):
+    """Merge newly generated ComicInfo XML bytes with existing XML bytes."""
+    if not existing_xml:
+        return comicinfo_xml_bytes
+    try:
+        in_tree = ET.fromstring(comicinfo_xml_bytes)
+        in_data = {child.tag: child.text for child in in_tree if child.text}
+        return generate_comicinfo_xml(
+            in_data, existing_xml, merge=True, unmapped_tags=unmapped_tags
+        )
+    except Exception:
+        return comicinfo_xml_bytes
 
 
 def remove_comicinfo_from_cbz(cbz_path):
@@ -698,35 +702,32 @@ def remove_comicinfo_from_cbz(cbz_path):
     if not os.path.exists(cbz_path):
         raise FileNotFoundError(f"CBZ file not found: {cbz_path}")
 
-    items_to_remove = []
     with zipfile.ZipFile(cbz_path, "r") as zf_in:
-        for item in zf_in.infolist():
-            if is_comicinfo_path(item.filename):
-                items_to_remove.append(item.filename)
+        items_to_remove = [
+            item.filename for item in zf_in.infolist() if is_comicinfo_path(item.filename)
+        ]
+        if not items_to_remove:
+            return False, 0
 
-    if not items_to_remove:
-        return False, 0
+        dir_name = os.path.dirname(os.path.abspath(cbz_path))
+        fd, temp_path = tempfile.mkstemp(suffix=".cbz.tmp", dir=dir_name)
+        os.close(fd)
 
-    dir_name = os.path.dirname(os.path.abspath(cbz_path))
-    fd, temp_path = tempfile.mkstemp(suffix=".cbz.tmp", dir=dir_name)
-    os.close(fd)
-
-    try:
-        with zipfile.ZipFile(cbz_path, "r") as zf_in:
+        try:
             with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf_out:
                 for item in zf_in.infolist():
                     if is_comicinfo_path(item.filename):
                         continue
                     zf_out.writestr(item, zf_in.read(item.filename))
 
-        shutil.move(temp_path, cbz_path)
-        return True, len(items_to_remove)
-    finally:
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass
+            os.replace(temp_path, cbz_path)
+            return True, len(items_to_remove)
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
 
 
 def embed_into_cbz(cbz_path, comicinfo_xml_bytes, merge=True, unmapped_tags=None):
@@ -740,35 +741,28 @@ def embed_into_cbz(cbz_path, comicinfo_xml_bytes, merge=True, unmapped_tags=None
     if not os.path.exists(cbz_path):
         raise FileNotFoundError(f"CBZ file not found: {cbz_path}")
 
-    # Check for existing ComicInfo.xml inside the archive (root or nested)
-    existing_xml = None
-    if merge:
-        existing_xml, _found_path = find_comicinfo_in_cbz(cbz_path)
-
-    # If merge is requested and existing XML found, merge it
-    final_xml_bytes = comicinfo_xml_bytes
-    if merge and existing_xml:
-        try:
-            in_tree = ET.fromstring(comicinfo_xml_bytes)
-            in_data = {child.tag: child.text for child in in_tree if child.text}
-            final_xml_bytes = generate_comicinfo_xml(
-                in_data, existing_xml, merge=True, unmapped_tags=unmapped_tags
-            )
-        except Exception:
-            pass
-
-    # Write to a temporary zip file
     dir_name = os.path.dirname(os.path.abspath(cbz_path))
     fd, temp_path = tempfile.mkstemp(suffix=".cbz.tmp", dir=dir_name)
     os.close(fd)
 
     try:
         with zipfile.ZipFile(cbz_path, "r") as zf_in:
+            final_xml_bytes = comicinfo_xml_bytes
+            if merge:
+                chosen = _find_comicinfo_entry(zf_in)
+                if chosen is not None:
+                    try:
+                        existing_xml = zf_in.read(chosen.filename)
+                        final_xml_bytes = _merge_xml_bytes(
+                            comicinfo_xml_bytes, existing_xml, unmapped_tags=unmapped_tags
+                        )
+                    except Exception:
+                        pass
+
             with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf_out:
                 # Copy all existing files EXCEPT any old ComicInfo.xml (root or nested)
                 for item in zf_in.infolist():
                     if is_comicinfo_path(item.filename):
-                        # Always delete old comicinfo before adding the new one
                         continue
                     zf_out.writestr(item, zf_in.read(item.filename))
 
@@ -776,7 +770,7 @@ def embed_into_cbz(cbz_path, comicinfo_xml_bytes, merge=True, unmapped_tags=None
                 zf_out.writestr("ComicInfo.xml", final_xml_bytes)
 
         # Atomically replace the original file
-        shutil.move(temp_path, cbz_path)
+        os.replace(temp_path, cbz_path)
     finally:
         if os.path.exists(temp_path):
             try:
@@ -799,50 +793,46 @@ def convert_cbr_to_cbz(cbr_path, comicinfo_xml_bytes, merge=True, unmapped_tags=
     # Temporary directory for extracted files
     temp_dir = tempfile.mkdtemp(prefix="calibre_cbr_extract_")
     cbz_path = os.path.splitext(cbr_path)[0] + ".cbz"
+    dir_name = os.path.dirname(os.path.abspath(cbz_path))
+    temp_cbz_path = None
 
     try:
         # Try Calibre unrar
-        extracted = False
         try:
             from calibre.utils.unrar import extract
             extract(cbr_path, temp_dir)
-            extracted = True
-        except Exception:
-            pass
-
-        if not extracted:
+        except Exception as exc:
             raise RuntimeError(
                 "Cannot extract CBR archive: Calibre unrar utility is not available."
-            )
+            ) from exc
 
         # Check if existing ComicInfo.xml exists anywhere in extracted directory
         existing_xml = None
-        for root_dir, _dirs, files in os.walk(temp_dir):
-            for f in files:
-                if is_comicinfo_path(f):
-                    full_path = os.path.join(root_dir, f)
-                    try:
-                        with open(full_path, "rb") as xf:
-                            existing_xml = xf.read()
-                    except Exception:
-                        pass
+        if merge:
+            for root_dir, _dirs, files in os.walk(temp_dir):
+                for f in files:
+                    if is_comicinfo_path(f):
+                        full_path = os.path.join(root_dir, f)
+                        try:
+                            with open(full_path, "rb") as xf:
+                                existing_xml = xf.read()
+                        except Exception:
+                            pass
+                        break
+                if existing_xml:
                     break
-            if existing_xml:
-                break
 
-        final_xml_bytes = comicinfo_xml_bytes
-        if merge and existing_xml:
-            try:
-                in_tree = ET.fromstring(comicinfo_xml_bytes)
-                in_data = {child.tag: child.text for child in in_tree if child.text}
-                final_xml_bytes = generate_comicinfo_xml(
-                    in_data, existing_xml, merge=True, unmapped_tags=unmapped_tags
-                )
-            except Exception:
-                pass
+        final_xml_bytes = (
+            _merge_xml_bytes(comicinfo_xml_bytes, existing_xml, unmapped_tags=unmapped_tags)
+            if merge and existing_xml
+            else comicinfo_xml_bytes
+        )
 
-        # Write ComicInfo.xml at the root of the CBZ
-        with zipfile.ZipFile(cbz_path, "w", compression=zipfile.ZIP_DEFLATED) as zf_out:
+        # Write to a temporary zip file first, then atomically replace target CBZ
+        fd, temp_cbz_path = tempfile.mkstemp(suffix=".cbz.tmp", dir=dir_name)
+        os.close(fd)
+
+        with zipfile.ZipFile(temp_cbz_path, "w", compression=zipfile.ZIP_DEFLATED) as zf_out:
             zf_out.writestr("ComicInfo.xml", final_xml_bytes)
 
             # Add all other extracted image/content files (skipping any old comicinfo.xml)
@@ -854,7 +844,13 @@ def convert_cbr_to_cbz(cbr_path, comicinfo_xml_bytes, merge=True, unmapped_tags=
                     arcname = os.path.relpath(full_path, temp_dir)
                     zf_out.write(full_path, arcname)
 
+        os.replace(temp_cbz_path, cbz_path)
         return cbz_path
     finally:
+        if temp_cbz_path and os.path.exists(temp_cbz_path):
+            try:
+                os.remove(temp_cbz_path)
+            except OSError:
+                pass
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
