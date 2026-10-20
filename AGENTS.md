@@ -6,7 +6,7 @@ This document serves as a guide for AI agents and developers working on the **Co
 
 ## 1. Project Overview
 
-**ComicInfo Writer** is a Calibre plugin designed to write and embed schema-compliant `ComicInfo.xml` metadata into digital comic archives (`.cbz` and `.cbr`). The metadata follows the [ComicInfo v2.1 Draft Schema](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1) and [Kavita's Comic Metadata Specification](https://wiki.kavitareader.com/guides/metadata/comics/).
+**ComicInfo Writer** is a Calibre plugin designed to write and embed schema-compliant `ComicInfo.xml` metadata into digital comic archives (`.cbz` and `.cbr`). The metadata follows the [Anansi Project ComicInfo v2.0 and v2.1 Draft Schemas](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1), universally supported by modern comic readers, media servers, and organizers.
 
 ### Core Capabilities
 - Mapping Calibre standard and custom columns to ComicInfo metadata tags.
@@ -22,6 +22,7 @@ This document serves as a guide for AI agents and developers working on the **Co
 
 ```
 ├── .github/
+│   ├── dependabot.yml           # Automated monthly checks for GitHub Actions
 │   └── workflows/
 │       └── release.yml          # Manual GitHub workflow for version bumps and releases
 ├── images/
@@ -34,9 +35,10 @@ This document serves as a guide for AI agents and developers working on the **Co
 ├── __init__.py                  # Calibre plugin entry point and metadata definition (version tuple)
 ├── build_plugin.py              # Script packaging the plugin into ComicInfoWriter.zip
 ├── comic_processor.py           # Core logic: XML generation, archive inspection, atomic file ops
+├── comicinfo_constants.py       # Anansi Project ComicInfo schema constants, tags, and enum values
 ├── config.py                    # Calibre JSONConfig storage and preference management
 ├── config_dialog.py             # Qt GUI configuration dialog for settings and column mappings
-├── kavita_constants.py          # ComicInfo v2.1 and Kavita schema constants and enum values
+├── kavita_constants.py          # Backward-compatibility alias redirecting to comicinfo_constants.py
 ├── plugin-import-name-comicinfo_writer.txt  # Calibre plugin import namespace declaration
 ├── LICENSE                      # EUPL v1.2 License
 └── README.md                    # User-facing documentation and installation guide
@@ -119,5 +121,5 @@ Releases are managed via GitHub Actions:
 
 - **Python Compatibility**: Target Python 3.10+ (Calibre 6+ uses Python 3).
 - **Atomic File Operations**: Always write modified archives to temporary files first before replacing original files to prevent data loss.
-- **Schema Compliance**: Maintain strict adherence to ComicInfo v2.1 specifications when modifying XML elements in [`comic_processor.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/comic_processor.py) and [`kavita_constants.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/kavita_constants.py).
+- **Schema Compliance**: Maintain strict adherence to ComicInfo v2.0/v2.1 specifications when modifying XML elements in [`comic_processor.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/comic_processor.py) and [`comicinfo_constants.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/comicinfo_constants.py).
 - **Preserve Comments & Docstrings**: Keep existing docstrings and explanatory comments intact when modifying existing files.

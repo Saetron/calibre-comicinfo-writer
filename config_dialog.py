@@ -3,7 +3,7 @@
 """
 Configuration dialog and widget for the ComicInfo Writer plugin.
 Provides user options for Series Index omission, archive handling,
-and full mapping of custom Calibre fields to ComicInfo v2.1/Kavita tags.
+and full mapping of custom Calibre fields to ComicInfo v2.0/v2.1 tags.
 """
 
 import copy
@@ -50,7 +50,7 @@ except ImportError:
     from PyQt6.QtCore import Qt
 
 try:
-    from calibre_plugins.comicinfo_writer.kavita_constants import (
+    from calibre_plugins.comicinfo_writer.comicinfo_constants import (
         COMICINFO_TAG_DEFS,
         CALIBRE_STANDARD_FIELDS,
     )
@@ -63,10 +63,16 @@ try:
         DEFAULT_CONFIG,
     )
 except ImportError:
-    from kavita_constants import (
-        COMICINFO_TAG_DEFS,
-        CALIBRE_STANDARD_FIELDS,
-    )
+    try:
+        from comicinfo_constants import (
+            COMICINFO_TAG_DEFS,
+            CALIBRE_STANDARD_FIELDS,
+        )
+    except ImportError:
+        from kavita_constants import (
+            COMICINFO_TAG_DEFS,
+            CALIBRE_STANDARD_FIELDS,
+        )
     from config import (
         get_pref,
         set_pref,
@@ -153,10 +159,10 @@ class ConfigWidget(QWidget):
         self.init_mappings_tab(tab_mappings)
         self.tabs.addTab(tab_mappings, "Field Mappings (Calibre → ComicInfo)")
 
-        # Tab 3: Kavita Guide & Reference
-        tab_kavita = QWidget()
-        self.init_kavita_tab(tab_kavita)
-        self.tabs.addTab(tab_kavita, "Kavita Guide")
+        # Tab 3: ComicInfo Guide & Reference
+        tab_guide = QWidget()
+        self.init_guide_tab(tab_guide)
+        self.tabs.addTab(tab_guide, "ComicInfo Guide")
 
     def init_general_tab(self, parent_widget):
         layout = QVBoxLayout(parent_widget)
@@ -247,7 +253,7 @@ class ConfigWidget(QWidget):
         self.table.setHorizontalHeaderLabels([
             "ComicInfo Tag",
             "Data Type",
-            "Kavita Role / Specification",
+            "Description / Schema Notes",
             "Mapped Calibre Field / Custom Column",
         ])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -256,7 +262,7 @@ class ConfigWidget(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.table.setRowCount(len(COMICINFO_TAG_DEFS))
 
-        for row, (tag_name, tag_type, _default, _desc, kavita_desc) in enumerate(COMICINFO_TAG_DEFS):
+        for row, (tag_name, tag_type, _default, _desc, schema_desc) in enumerate(COMICINFO_TAG_DEFS):
             # Column 0: Tag Name
             item_tag = QTableWidgetItem(tag_name)
             item_tag.setFlags(item_tag.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -267,10 +273,10 @@ class ConfigWidget(QWidget):
             item_type.setFlags(item_type.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 1, item_type)
 
-            # Column 2: Kavita / Description
-            item_kavita = QTableWidgetItem(f"{kavita_desc} ({_desc})")
-            item_kavita.setFlags(item_kavita.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.table.setItem(row, 2, item_kavita)
+            # Column 2: Description / Schema Notes
+            item_desc = QTableWidgetItem(f"{schema_desc}")
+            item_desc.setFlags(item_desc.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.table.setItem(row, 2, item_desc)
 
             # Column 3: Calibre Field Dropdown
             combo = QComboBox(self.table)
@@ -282,29 +288,34 @@ class ConfigWidget(QWidget):
 
         layout.addWidget(self.table)
 
-    def init_kavita_tab(self, parent_widget):
+    def init_guide_tab(self, parent_widget):
         layout = QVBoxLayout(parent_widget)
         browser = QTextBrowser(parent_widget)
         browser.setOpenExternalLinks(True)
         browser.setHtml("""
-        <h3>Kavita Comic Metadata Reference</h3>
+        <h3>ComicInfo Schema Reference (Anansi Project)</h3>
         <p>This plugin generates <code>ComicInfo.xml</code> files conforming to the
-        <b>Anansi Project ComicInfo v2.1</b> draft specification and Kavita's conventions:</p>
+        <b>Anansi Project ComicInfo v2.0 & v2.1</b> draft specifications, universally supported
+        by modern comic readers and media servers (e.g. Panels, Chunky, YACReader, Komga, Kavita, Ubooquity):</p>
         <ul>
-          <li><b>Title:</b> Used by Kavita as the Chapter / Issue Title.</li>
-          <li><b>Series & SeriesSort:</b> Kavita uses <code>&lt;SeriesSort&gt;</code> to sort the series, overriding <code>&lt;Series&gt;</code>.</li>
-          <li><b>LocalizedSeries:</b> Kavita groups files with this name and the series name together, enabling searches by either name.</li>
-          <li><b>Number:</b> Issue or chapter number. If disabled in General Options, this tag is omitted.</li>
-          <li><b>Count:</b> Total number of issues/volumes. Kavita uses this to determine publication status (Ended if &gt;0, Completed if owned count matches).</li>
+          <li><b>Title:</b> Chapter or individual book title.</li>
+          <li><b>Series:</b> Main comic or manga series name.</li>
+          <li><b>SeriesSort:</b> Sort title for series (overrides alphabetical sorting if provided).</li>
+          <li><b>LocalizedSeries:</b> Localized/translated series title (enables search by alternate language titles).</li>
+          <li><b>Number:</b> Issue, chapter, or book number. If disabled in General Options, this tag is omitted.</li>
+          <li><b>Count:</b> Total count of issues or volumes in the series.</li>
           <li><b>Volume:</b> Volume number for manga and collected comic trades.</li>
-          <li><b>Format:</b> Formats like <i>Special, Annual, Anthology, TPB, Omnibus, Graphic Novel, One Shot</i> trigger Kavita's special issue handling.</li>
-          <li><b>SeriesGroup:</b> Comma-separated names that automatically create/update Collections in Kavita.</li>
-          <li><b>AgeRating:</b> The highest (most mature) rating among issues is applied to the Series in Kavita.</li>
-          <li><b>GTIN:</b> Populates the book's ISBN in Kavita.</li>
+          <li><b>Format:</b> Publication format (e.g. <i>TPB, Annual, Special, Omnibus, Graphic Novel, One Shot</i>).</li>
+          <li><b>SeriesGroup:</b> Series group or collection name (comma-separated).</li>
+          <li><b>AgeRating:</b> Standardized content rating (e.g. <i>Everyone, Teen, Mature 17+, Adults Only 18+</i>).</li>
+          <li><b>GTIN:</b> Global Trade Item Number / ISBN / Barcode.</li>
         </ul>
-        <p>For more details, see the <a href="https://wiki.kavitareader.com/guides/metadata/comics/">Kavita Comics Metadata Guide</a>.</p>
+        <p>For more details, see the <a href="https://anansi-project.github.io/docs/comicinfo/schemas/v2.1">Anansi Project ComicInfo Schema Documentation</a>.</p>
         """)
         layout.addWidget(browser)
+
+    # Backward compatibility alias
+    init_kavita_tab = init_guide_tab
 
     def filter_tags_table(self, query):
         """Filter rows in the mappings table by query string."""
@@ -315,8 +326,9 @@ class ConfigWidget(QWidget):
                 continue
             tag_name = self.table.item(row, 0).text().lower()
             tag_type = self.table.item(row, 1).text().lower()
-            kavita_desc = self.table.item(row, 2).text().lower()
-            match = query in tag_name or query in tag_type or query in kavita_desc
+            schema_desc = self.table.item(row, 2).text().lower()
+            match = query in tag_name or query in tag_type or query in schema_desc
+            self.table.setRowHidden(row, not match)
             self.table.setRowHidden(row, not match)
 
     def load_settings(self):
@@ -400,7 +412,7 @@ class ConfigDialog(QDialog):
 
     def __init__(self, parent=None, db=None):
         super().__init__(parent)
-        self.setWindowTitle("Configure ComicInfo Writer (Kavita)")
+        self.setWindowTitle("Configure ComicInfo Writer")
         self.resize(850, 600)
 
         layout = QVBoxLayout(self)

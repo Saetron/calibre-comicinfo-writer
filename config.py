@@ -19,16 +19,19 @@ except ImportError:
             pass
 
 try:
-    from calibre_plugins.comicinfo_writer.kavita_constants import COMICINFO_TAG_DEFS
+    from calibre_plugins.comicinfo_writer.comicinfo_constants import COMICINFO_TAG_DEFS
 except ImportError:
-    from kavita_constants import COMICINFO_TAG_DEFS
+    try:
+        from comicinfo_constants import COMICINFO_TAG_DEFS
+    except ImportError:
+        from kavita_constants import COMICINFO_TAG_DEFS
 
 
 CONFIG_FILE_NAME = "plugins/comicinfo_writer"
 
 # Build default tag mappings from definitions
 DEFAULT_TAG_MAPPINGS = {}
-for tag_name, _type, default_field, _desc, _kavita in COMICINFO_TAG_DEFS:
+for tag_name, _type, default_field, _desc, _schema_desc in COMICINFO_TAG_DEFS:
     DEFAULT_TAG_MAPPINGS[tag_name] = default_field or ""
 
 DEFAULT_CONFIG = {

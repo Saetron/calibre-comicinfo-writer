@@ -18,7 +18,10 @@ from comic_processor import (
     strip_html_tags,
     format_series_index,
 )
-from kavita_constants import COMICINFO_TAG_DEFS
+try:
+    from comicinfo_constants import COMICINFO_TAG_DEFS
+except ImportError:
+    from kavita_constants import COMICINFO_TAG_DEFS
 
 
 class MockMetadata:

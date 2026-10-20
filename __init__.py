@@ -3,7 +3,7 @@
 """
 ComicInfo Writer Plugin for Calibre
 Writes and embeds schema-compliant ComicInfo.xml metadata into comic books (CBZ/CBR)
-according to Kavita and ComicInfo v2.1 specifications.
+according to Anansi Project ComicInfo v2.0 and v2.1 specifications.
 """
 
 from calibre.customize import InterfaceActionBase
@@ -13,11 +13,11 @@ class ComicInfoWriterPlugin(InterfaceActionBase):
     name = "ComicInfo Writer"
     description = (
         "Writes and embeds ComicInfo.xml metadata into comic books (CBZ/CBR) according to "
-        "Kavita and ComicInfo v2.1 specifications. Supports custom field mapping "
+        "Anansi Project ComicInfo schema specifications. Supports custom field mapping "
         "and option to omit series index numbers."
     )
     supported_platforms = ["windows", "osx", "linux"]
-    author = "Kavita Plugin Contributor"
+    author = "ComicInfo Contributor"
     version = (1, 0, 0)
     minimum_calibre_version = (6, 0, 0)
 

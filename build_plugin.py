@@ -15,6 +15,7 @@ FILES_TO_INCLUDE = [
     ("config.py", "config.py"),
     ("config_dialog.py", "config_dialog.py"),
     ("comic_processor.py", "comic_processor.py"),
+    ("comicinfo_constants.py", "comicinfo_constants.py"),
     ("kavita_constants.py", "kavita_constants.py"),
     ("plugin-import-name-comicinfo_writer.txt", "plugin-import-name-comicinfo_writer.txt"),
     ("images/icon.png", "images/icon.png"),

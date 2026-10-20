@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Core processing engine for extracting metadata from Calibre,
-generating schema-compliant ComicInfo.xml (v2.1 + Kavita),
+generating schema-compliant ComicInfo.xml (Anansi Project v2.0/v2.1),
 and embedding it safely into comic archives (CBZ/CBR).
 """
 
@@ -17,7 +17,7 @@ from xml.dom import minidom
 from datetime import datetime, date
 
 try:
-    from calibre_plugins.comicinfo_writer.kavita_constants import (
+    from calibre_plugins.comicinfo_writer.comicinfo_constants import (
         COMICINFO_TAG_DEFS,
         COMICINFO_TAG_MAP,
         AGE_RATINGS,
@@ -29,13 +29,22 @@ try:
         get_tag_mappings,
     )
 except ImportError:
-    from kavita_constants import (
-        COMICINFO_TAG_DEFS,
-        COMICINFO_TAG_MAP,
-        AGE_RATINGS,
-        MANGA_VALUES,
-        YES_NO_VALUES,
-    )
+    try:
+        from comicinfo_constants import (
+            COMICINFO_TAG_DEFS,
+            COMICINFO_TAG_MAP,
+            AGE_RATINGS,
+            MANGA_VALUES,
+            YES_NO_VALUES,
+        )
+    except ImportError:
+        from kavita_constants import (
+            COMICINFO_TAG_DEFS,
+            COMICINFO_TAG_MAP,
+            AGE_RATINGS,
+            MANGA_VALUES,
+            YES_NO_VALUES,
+        )
     from config import (
         get_pref,
         get_tag_mappings,
@@ -324,7 +333,7 @@ def extract_comicinfo_data(mi, mappings=None, options=None, custom_columns_dict=
         }
 
     data = {}
-    for tag_name, tag_type, _default, _desc, _kavita in COMICINFO_TAG_DEFS:
+    for tag_name, tag_type, _default, _desc, _schema_desc in COMICINFO_TAG_DEFS:
         field_name = mappings.get(tag_name)
         if not field_name:
             continue

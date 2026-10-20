@@ -18,7 +18,10 @@ from comic_processor import (
     normalize_enum_value,
     normalize_iso_language,
 )
-from kavita_constants import AGE_RATINGS, MANGA_VALUES, YES_NO_VALUES
+try:
+    from comicinfo_constants import AGE_RATINGS, MANGA_VALUES, YES_NO_VALUES
+except ImportError:
+    from kavita_constants import AGE_RATINGS, MANGA_VALUES, YES_NO_VALUES
 
 
 class MockCalibreMetadata:
