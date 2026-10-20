@@ -6,6 +6,7 @@ generating schema-compliant ComicInfo.xml (Anansi Project v2.0/v2.1),
 and embedding it safely into comic archives (CBZ/CBR).
 """
 
+import calendar
 import os
 import re
 import html
@@ -13,13 +14,14 @@ import shutil
 import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
-from xml.dom import minidom
 from datetime import datetime, date
 
 try:
     from calibre_plugins.comicinfo_writer.comicinfo_constants import (
         COMICINFO_TAG_DEFS,
         COMICINFO_TAG_MAP,
+        ORDERED_TAG_NAMES,
+        ALL_KNOWN_TAGS,
         AGE_RATINGS,
         MANGA_VALUES,
         YES_NO_VALUES,
@@ -33,6 +35,8 @@ except ImportError:
         from comicinfo_constants import (
             COMICINFO_TAG_DEFS,
             COMICINFO_TAG_MAP,
+            ORDERED_TAG_NAMES,
+            ALL_KNOWN_TAGS,
             AGE_RATINGS,
             MANGA_VALUES,
             YES_NO_VALUES,
@@ -41,6 +45,8 @@ except ImportError:
         from kavita_constants import (
             COMICINFO_TAG_DEFS,
             COMICINFO_TAG_MAP,
+            ORDERED_TAG_NAMES,
+            ALL_KNOWN_TAGS,
             AGE_RATINGS,
             MANGA_VALUES,
             YES_NO_VALUES,
@@ -50,20 +56,27 @@ except ImportError:
         get_tag_mappings,
     )
 
+# Pre-compiled regular expressions for HTML stripping and language parsing
+_RE_BR = re.compile(r"(?i)<br\s*/?>")
+_RE_BLOCK = re.compile(r"(?i)</?(p|div|li|blockquote)[^>]*>")
+_RE_TAGS = re.compile(r"<[^>]+>")
+_RE_MULTI_NEWLINE = re.compile(r"\n\s*\n")
+_RE_LANG_SPLIT = re.compile(r"[-_]")
+
 
 def strip_html_tags(text):
     """Cleanly strip HTML tags and unescape HTML entities."""
     if not text:
         return ""
     # Replace block level elements and linebreaks with newlines
-    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
-    text = re.sub(r'(?i)</?(p|div|li|blockquote)[^>]*>', '\n', text)
+    text = _RE_BR.sub("\n", text)
+    text = _RE_BLOCK.sub("\n", text)
     # Strip remaining HTML tags
-    clean = re.sub(r'<[^>]+>', '', text)
+    clean = _RE_TAGS.sub("", text)
     # Unescape HTML entities (&amp;, &lt;, etc.)
     clean = html.unescape(clean)
     # Normalize multiple newlines and trim whitespace
-    clean = re.sub(r'\n\s*\n', '\n\n', clean)
+    clean = _RE_MULTI_NEWLINE.sub("\n\n", clean)
     return clean.strip()
 
 
@@ -86,19 +99,50 @@ except ImportError:
     canonicalize_lang = None
     lang_as_iso639_1 = None
 
-# Common ISO 639-2/B (3-letter) and alias mappings to ISO 639-1 (2-letter)
+# Common ISO 639-2/B (3-letter), full English names, and alias mappings to ISO 639-1 (2-letter)
 FALLBACK_3TO2_LANG = {
-    "eng": "en", "deu": "de", "ger": "de", "jpn": "ja", "jp": "ja",
-    "fra": "fr", "fre": "fr", "spa": "es", "ita": "it", "zho": "zh",
-    "chi": "zh", "kor": "ko", "rus": "ru", "por": "pt", "nld": "nl",
-    "dut": "nl", "pol": "pl", "swe": "sv", "dan": "da", "nor": "no",
-    "fin": "fi", "tur": "tr", "ces": "cs", "cze": "cs", "ron": "ro",
-    "rum": "ro", "hun": "hu", "gre": "el", "ell": "el", "heb": "he",
-    "ara": "ar", "hin": "hi", "vie": "vi", "tha": "th", "ind": "id",
-    "ukr": "uk", "cat": "ca", "glg": "gl", "eus": "eu", "baq": "eu",
-    "lat": "la", "slk": "sk", "slo": "sk", "bul": "bg", "hrv": "hr",
-    "srp": "sr", "bos": "bs", "slv": "sl", "est": "et", "lav": "lv",
-    "lit": "lt", "fas": "fa", "per": "fa",
+    "eng": "en", "english": "en",
+    "deu": "de", "ger": "de", "german": "de",
+    "jpn": "ja", "jp": "ja", "japanese": "ja",
+    "fra": "fr", "fre": "fr", "french": "fr",
+    "spa": "es", "spanish": "es",
+    "ita": "it", "italian": "it",
+    "zho": "zh", "chi": "zh", "chinese": "zh",
+    "kor": "ko", "korean": "ko",
+    "rus": "ru", "russian": "ru",
+    "por": "pt", "portuguese": "pt",
+    "nld": "nl", "dut": "nl", "dutch": "nl",
+    "pol": "pl", "polish": "pl",
+    "swe": "sv", "swedish": "sv",
+    "dan": "da", "danish": "da",
+    "nor": "no", "norwegian": "no",
+    "fin": "fi", "finnish": "fi",
+    "tur": "tr", "turkish": "tr",
+    "ces": "cs", "cze": "cs", "czech": "cs",
+    "ron": "ro", "rum": "ro", "romanian": "ro",
+    "hun": "hu", "hungarian": "hu",
+    "gre": "el", "ell": "el", "greek": "el",
+    "heb": "he", "hebrew": "he",
+    "ara": "ar", "arabic": "ar",
+    "hin": "hi", "hindi": "hi",
+    "vie": "vi", "vietnamese": "vi",
+    "tha": "th", "thai": "th",
+    "ind": "id", "indonesian": "id",
+    "ukr": "uk", "ukrainian": "uk",
+    "cat": "ca", "catalan": "ca",
+    "glg": "gl", "galician": "gl",
+    "eus": "eu", "baq": "eu", "basque": "eu",
+    "lat": "la", "latin": "la",
+    "slk": "sk", "slo": "sk", "slovak": "sk",
+    "bul": "bg", "bulgarian": "bg",
+    "hrv": "hr", "croatian": "hr",
+    "srp": "sr", "serbian": "sr",
+    "bos": "bs", "bosnian": "bs",
+    "slv": "sl", "slovenian": "sl",
+    "est": "et", "estonian": "et",
+    "lav": "lv", "latvian": "lv",
+    "lit": "lt", "lithuanian": "lt",
+    "fas": "fa", "per": "fa", "persian": "fa",
 }
 
 # Mapping 2-letter ISO 639-1 back to Calibre's preferred 3-letter ISO 639-2
@@ -129,7 +173,7 @@ def normalize_iso_language(lang):
         return ""
 
     # Suffixes like 'en-US' or 'en_GB' -> 'en'
-    code = re.split(r"[-_]", lang_str)[0].strip()
+    code = _RE_LANG_SPLIT.split(lang_str, maxsplit=1)[0].strip()
 
     # Direct alias: jp -> ja
     if code == "jp" or lang_str == "jp":
@@ -165,24 +209,25 @@ def normalize_enum_value(val, allowed_values):
     s = str(val).strip()
     if not s:
         return ""
+    s_lower = s.lower()
     # Direct match
     for allowed in allowed_values:
-        if s.lower() == allowed.lower():
+        if s_lower == allowed.lower():
             return allowed
-    # Partial match for common ratings
-    s_lower = s.lower()
-    if "teen" in s_lower:
-        return "Teen"
-    if "mature" in s_lower or "17+" in s_lower:
-        return "Mature 17+"
-    if "adult" in s_lower or "18+" in s_lower:
-        return "Adults Only 18+"
-    if "kid" in s_lower:
-        return "Kids to Adults"
-    if "everyone" in s_lower:
-        if "10+" in s_lower:
-            return "Everyone 10+"
-        return "Everyone"
+    # Partial match for common age ratings when validating AgeRating enum
+    if allowed_values is AGE_RATINGS or "Teen" in allowed_values:
+        if "teen" in s_lower:
+            return "Teen"
+        if "mature" in s_lower or "17+" in s_lower:
+            return "Mature 17+"
+        if "adult" in s_lower or "18+" in s_lower:
+            return "Adults Only 18+"
+        if "kid" in s_lower:
+            return "Kids to Adults"
+        if "everyone" in s_lower:
+            if "10+" in s_lower:
+                return "Everyone 10+"
+            return "Everyone"
     return allowed_values[0]  # default to 'Unknown'
 
 

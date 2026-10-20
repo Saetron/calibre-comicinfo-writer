@@ -117,8 +117,10 @@ COMICINFO_TAG_DEFS = [
     ("SeriesSort", "string", "series_sort", "Sort title for series", "Series Sort Title"),
 ]
 
-# Quick lookup by tag name
+# Quick lookup by tag name and ordered tag sequence
 COMICINFO_TAG_MAP = {tag[0]: tag for tag in COMICINFO_TAG_DEFS}
+ORDERED_TAG_NAMES = tuple(tag[0] for tag in COMICINFO_TAG_DEFS)
+ALL_KNOWN_TAGS = frozenset(ORDERED_TAG_NAMES)
 
 # Standard Calibre fields available for mapping
 CALIBRE_STANDARD_FIELDS = [
