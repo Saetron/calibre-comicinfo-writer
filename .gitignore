@@ -5,3 +5,4 @@ __pycache__/
 .calibre_config/
 *.tmp
 *.cbz.tmp
+*.zip

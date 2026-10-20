@@ -32,7 +32,7 @@ A powerful, customizable Calibre plugin to embed `ComicInfo.xml` metadata direct
 ### Method 1: Via Calibre GUI (Recommended)
 1. In Calibre, go to **Preferences** -> **Plugins** (under *Advanced*).
 2. Click **Load plugin from file** at the bottom right.
-3. Select `EmbedComicInfo.zip` located in this folder.
+3. Select `EmbedComicInfo.zip` downloaded from the [Releases](https://github.com/Saetron/calibre-comicinfo.xml/releases) page (or built from source).
 4. Click **Yes** to confirm installing the plugin.
 5. Restart Calibre when prompted.
 6. The **Embed ComicInfo.xml** button will appear on your Calibre toolbar and in the right-click context menu.
