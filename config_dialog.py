@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Configuration dialog and widget for the Embed ComicInfo.xml plugin.
+Configuration dialog and widget for the ComicInfo Writer plugin.
 Provides user options for Series Index omission, archive handling,
 and full mapping of custom Calibre fields to ComicInfo v2.1/Kavita tags.
 """
@@ -50,11 +50,11 @@ except ImportError:
     from PyQt6.QtCore import Qt
 
 try:
-    from calibre_plugins.embed_comicinfo.kavita_constants import (
+    from calibre_plugins.comicinfo_writer.kavita_constants import (
         COMICINFO_TAG_DEFS,
         CALIBRE_STANDARD_FIELDS,
     )
-    from calibre_plugins.embed_comicinfo.config import (
+    from calibre_plugins.comicinfo_writer.config import (
         get_pref,
         set_pref,
         get_tag_mappings,
@@ -400,7 +400,7 @@ class ConfigDialog(QDialog):
 
     def __init__(self, parent=None, db=None):
         super().__init__(parent)
-        self.setWindowTitle("Configure Embed ComicInfo.xml (Kavita)")
+        self.setWindowTitle("Configure ComicInfo Writer (Kavita)")
         self.resize(850, 600)
 
         layout = QVBoxLayout(self)

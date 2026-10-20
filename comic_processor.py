@@ -17,14 +17,14 @@ from xml.dom import minidom
 from datetime import datetime, date
 
 try:
-    from calibre_plugins.embed_comicinfo.kavita_constants import (
+    from calibre_plugins.comicinfo_writer.kavita_constants import (
         COMICINFO_TAG_DEFS,
         COMICINFO_TAG_MAP,
         AGE_RATINGS,
         MANGA_VALUES,
         YES_NO_VALUES,
     )
-    from calibre_plugins.embed_comicinfo.config import (
+    from calibre_plugins.comicinfo_writer.config import (
         get_pref,
         get_tag_mappings,
     )

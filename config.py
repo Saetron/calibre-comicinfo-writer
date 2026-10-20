@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Configuration management for Embed ComicInfo.xml Calibre plugin.
+Configuration management for ComicInfo Writer Calibre plugin.
 """
 
 import copy
@@ -19,12 +19,12 @@ except ImportError:
             pass
 
 try:
-    from calibre_plugins.embed_comicinfo.kavita_constants import COMICINFO_TAG_DEFS
+    from calibre_plugins.comicinfo_writer.kavita_constants import COMICINFO_TAG_DEFS
 except ImportError:
     from kavita_constants import COMICINFO_TAG_DEFS
 
 
-CONFIG_FILE_NAME = "plugins/embed_comicinfo_kavita"
+CONFIG_FILE_NAME = "plugins/comicinfo_writer"
 
 # Build default tag mappings from definitions
 DEFAULT_TAG_MAPPINGS = {}

@@ -1,6 +1,6 @@
-# Embed ComicInfo.xml (Kavita & ComicInfo v2.1) - Calibre Plugin
+# ComicInfo Writer (Kavita & ComicInfo v2.1) - Calibre Plugin
 
-A powerful, customizable Calibre plugin to embed `ComicInfo.xml` metadata directly into comic archives (`.cbz` and `.cbr`) according to [Kavita's Comic Metadata Specification](https://wiki.kavitareader.com/guides/metadata/comics/) and the [Anansi Project ComicInfo v2.1 Draft Schema](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1).
+A powerful, customizable Calibre plugin to write and embed `ComicInfo.xml` metadata directly into comic archives (`.cbz` and `.cbr`) according to [Kavita's Comic Metadata Specification](https://wiki.kavitareader.com/guides/metadata/comics/) and the [Anansi Project ComicInfo v2.1 Draft Schema](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1).
 
 ---
 
@@ -23,7 +23,7 @@ A powerful, customizable Calibre plugin to embed `ComicInfo.xml` metadata direct
 - **Safe Atomic Archive Embedding**: Atomically replaces archives using temporary files to prevent comic corruption.
 - **Metadata Merging**: Preserves existing tags and comic reader page information (`<Pages><Page Image="0" .../></Pages>`) inside the archive while updating metadata.
 - **CBR Conversion (Optional)**: Can automatically unpack proprietary RAR-based `.cbr` archives using Calibre's unrar utility and convert them to standard `.cbz` archives with embedded metadata.
-- **Batch Processing**: Embed metadata into multiple selected comic books with a progress bar and summary report.
+- **Batch Processing**: Write metadata into multiple selected comic books with a progress bar and summary report.
 
 ---
 
@@ -32,15 +32,15 @@ A powerful, customizable Calibre plugin to embed `ComicInfo.xml` metadata direct
 ### Method 1: Via Calibre GUI (Recommended)
 1. In Calibre, go to **Preferences** -> **Plugins** (under *Advanced*).
 2. Click **Load plugin from file** at the bottom right.
-3. Select `EmbedComicInfo.zip` downloaded from the [Releases](https://github.com/Saetron/calibre-comicinfo.xml/releases) page (or built from source).
+3. Select `ComicInfoWriter.zip` downloaded from the [Releases](https://github.com/Saetron/calibre-comicinfo-writer/releases) page (or built from source).
 4. Click **Yes** to confirm installing the plugin.
 5. Restart Calibre when prompted.
-6. The **Embed ComicInfo.xml** button will appear on your Calibre toolbar and in the right-click context menu.
+6. The **ComicInfo Writer** button will appear on your Calibre toolbar and in the right-click context menu.
 
 ### Method 2: Via Command Line
 Run:
 ```bash
-calibre-customize -a EmbedComicInfo.zip
+calibre-customize -a ComicInfoWriter.zip
 ```
 Restart Calibre.
 
@@ -49,8 +49,8 @@ Restart Calibre.
 ## Configuration & Custom Column Mapping
 
 To open the configuration dialog:
-- Click the arrow next to the **Embed ComicInfo.xml** toolbar button and select **Configure Plugin & Field Mappings...**, or
-- Go to **Preferences** -> **Plugins** -> select **Embed ComicInfo.xml** -> click **Customize plugin**.
+- Click the arrow next to the **ComicInfo Writer** toolbar button and select **Configure Plugin & Field Mappings...**, or
+- Go to **Preferences** -> **Plugins** -> select **ComicInfo Writer** -> click **Customize plugin**.
 
 ### 1. General Options
 - **Write Series Index into `<Number>` tag**:
@@ -101,21 +101,15 @@ Allows mapping each ComicInfo tag to:
 | `CoverArtist` | String | `(None)` | Cover Artist |
 | `Editor` | String | `(None)` | Editor |
 | `Translator` | String | `(None)` | Translator |
-| `Genre` | String | `(None)` | Genres |
-| `Tags` | String | `tags` | Tags / Keywords |
-| `Web` | String | `identifier:url` | Web Links (used for CBL matching in Kavita) |
-| `PageCount` | Integer | `(None)` | Length (aggregated on series) |
-| `LanguageISO` | String | `languages` | Language Code (e.g. `en`, `ja`, `fr`) |
-| `Format` | String | `(None)` | Special handling (`Special`, `Annual`, `TPB`, `Omnibus`, `One Shot`, etc.) |
-| `BlackAndWhite` | Enum (`Yes`/`No`/`Unknown`) | `(None)` | Black & White flag |
-| `Manga` | Enum (`Yes`/`YesAndRightToLeft`/`No`) | `(None)` | Manga reading direction |
-| `SeriesGroup` | String | `(None)` | Collections in Kavita (comma-delimited) |
-| `AgeRating` | Enum | `(None)` | Age Rating (highest in series is used by Kavita) |
-| `CommunityRating` | Decimal (0.0 - 5.0) | `rating` | Community / User Rating |
-| `GTIN` | String | `identifier:isbn` | ISBN in Kavita |
-| `StoryArc` | String | `(None)` | Reading Lists |
-| `StoryArcNumber` | String | `(None)` | Reading Lists issue order |
-| `AlternateSeries` | String | `(None)` | Reading Lists |
+| `Genre` | String | `tags` | Genres |
+| `Tags` | String | `tags` | Tags |
+| `Web` | String | `(None)` | Web URL / Comic link |
+| `LanguageISO` | String | `languages` | Language code (ISO 639-1) |
+| `Format` | String | `(None)` | Format (`TPB`, `Annual`, `One Shot`, etc.) |
+| `AgeRating` | String | `(None)` | Age Rating (`Rating Pending`, `Teen`, `Mature 17+`, etc.) |
+| `Manga` | String | `(None)` | Manga reading direction (`YesAndRightToLeft`, etc.) |
+| `SeriesGroup` | String | `(None)` | Story Arc / Collection Group (maps to Collections in Kavita) |
+| `StoryArc` | String | `(None)` | Story Arc |
 | `Characters` | String | `(None)` | Characters list |
 | `Teams` | String | `(None)` | Teams list |
 | `Locations` | String | `(None)` | Locations list |
@@ -127,8 +121,8 @@ Allows mapping each ComicInfo tag to:
 ## How to Use
 
 1. In Calibre, select one or more comic books in your library.
-2. Click the **Embed ComicInfo.xml** toolbar button or open its dropdown menu:
-   - **Embed ComicInfo.xml into Selected Books**: Deletes any existing `ComicInfo.xml` (root or subfolder), generates clean metadata from Calibre, and writes `ComicInfo.xml` to the root of each archive.
+2. Click the **ComicInfo Writer** toolbar button or open its dropdown menu:
+   - **Write ComicInfo.xml into Selected Books**: Deletes any existing `ComicInfo.xml` (root or subfolder), generates clean metadata from Calibre, and writes `ComicInfo.xml` to the root of each archive.
    - **Import Metadata from ComicInfo.xml into Calibre**: Finds existing `ComicInfo.xml` (root or nested), parses the tags, and updates Calibre's fields and custom columns.
    - **Remove ComicInfo.xml from Selected Books**: Completely removes all `ComicInfo.xml` files (including any nested in subdirectories) from the selected comics.
 3. A completion dialog will display the summary report.
@@ -141,4 +135,4 @@ To package the plugin into a `.zip` file for distribution:
 ```bash
 python3 build_plugin.py
 ```
-This generates `EmbedComicInfo.zip`.
+This generates `ComicInfoWriter.zip`.

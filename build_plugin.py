@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Build script to package the Embed ComicInfo.xml Calibre plugin into a distributable .zip file.
+Build script to package the ComicInfo Writer Calibre plugin into a distributable .zip file.
 """
 
 import os
 import zipfile
 
-OUTPUT_ZIP = "EmbedComicInfo.zip"
+OUTPUT_ZIP = "ComicInfoWriter.zip"
 
 FILES_TO_INCLUDE = [
     ("__init__.py", "__init__.py"),
@@ -16,7 +16,7 @@ FILES_TO_INCLUDE = [
     ("config_dialog.py", "config_dialog.py"),
     ("comic_processor.py", "comic_processor.py"),
     ("kavita_constants.py", "kavita_constants.py"),
-    ("plugin-import-name-embed_comicinfo.txt", "plugin-import-name-embed_comicinfo.txt"),
+    ("plugin-import-name-comicinfo_writer.txt", "plugin-import-name-comicinfo_writer.txt"),
     ("images/icon.png", "images/icon.png"),
 ]
 

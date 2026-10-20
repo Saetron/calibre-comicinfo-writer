@@ -83,8 +83,8 @@ jobs:
       - name: Build plugin package
         run: |
           python build_plugin.py
-          if [ ! -f "EmbedComicInfo.zip" ]; then
-            echo "Error: EmbedComicInfo.zip was not generated!"
+          if [ ! -f "ComicInfoWriter.zip" ]; then
+            echo "Error: ComicInfoWriter.zip was not generated!"
             exit 1
           fi
 
@@ -115,7 +115,7 @@ jobs:
             RELEASE_FLAGS+=("--draft")
           fi
 
-          gh release create "${TAG}" EmbedComicInfo.zip \
+          gh release create "${TAG}" ComicInfoWriter.zip \
             --title "Release ${TAG}" \
             --generate-notes \
             "${RELEASE_FLAGS[@]}"

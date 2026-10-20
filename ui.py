@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-UI InterfaceAction for the Embed ComicInfo.xml plugin.
+UI InterfaceAction for the ComicInfo Writer plugin.
 Adds toolbar button, context menu item, batch processing progress dialog,
 and configuration launcher.
 """
@@ -44,11 +44,11 @@ except ImportError:
     )
 
 try:
-    from calibre_plugins.embed_comicinfo.config import (
+    from calibre_plugins.comicinfo_writer.config import (
         get_pref,
         get_tag_mappings,
     )
-    from calibre_plugins.embed_comicinfo.comic_processor import (
+    from calibre_plugins.comicinfo_writer.comic_processor import (
         extract_comicinfo_data,
         generate_comicinfo_xml,
         embed_into_cbz,
@@ -58,7 +58,7 @@ try:
         apply_comicinfo_to_calibre_metadata,
         remove_comicinfo_from_cbz,
     )
-    from calibre_plugins.embed_comicinfo.config_dialog import ConfigDialog
+    from calibre_plugins.comicinfo_writer.config_dialog import ConfigDialog
 except ImportError:
     from config import (
         get_pref,
@@ -111,12 +111,12 @@ def create_fallback_icon():
     return QIcon(pixmap)
 
 
-class EmbedComicInfoAction(InterfaceAction):
-    name = "Embed ComicInfo.xml"
+class ComicInfoWriterAction(InterfaceAction):
+    name = "ComicInfo Writer"
     action_spec = (
-        "Embed ComicInfo.xml",
+        "ComicInfo Writer",
         None,
-        "Embed ComicInfo.xml metadata into selected comic books (CBZ/CBR)",
+        "Write ComicInfo.xml metadata into selected comic books (CBZ/CBR)",
         None,
     )
     action_type = "current"
@@ -133,15 +133,15 @@ class EmbedComicInfoAction(InterfaceAction):
         self.qaction.setIcon(icon)
 
         # Main action triggered
-        self.qaction.triggered.connect(self.embed_comicinfo_selected)
+        self.qaction.triggered.connect(self.write_comicinfo_selected)
 
         # Dropdown / sub-actions menu
         self.menu = QMenu(self.gui)
         self.qaction.setMenu(self.menu)
 
-        act_embed = self.menu.addAction("Embed ComicInfo.xml into Selected Books")
-        act_embed.setIcon(icon)
-        act_embed.triggered.connect(self.embed_comicinfo_selected)
+        act_write = self.menu.addAction("Write ComicInfo.xml into Selected Books")
+        act_write.setIcon(icon)
+        act_write.triggered.connect(self.write_comicinfo_selected)
 
         act_import = self.menu.addAction("Import Metadata from ComicInfo.xml into Calibre")
         act_import.triggered.connect(self.import_comicinfo_selected)
@@ -164,7 +164,7 @@ class EmbedComicInfoAction(InterfaceAction):
         dlg = ConfigDialog(self.gui, db=db)
         dlg.exec()
 
-    def embed_comicinfo_selected(self):
+    def write_comicinfo_selected(self):
         """Process all selected books in the active library."""
         rows = self.gui.library_view.selectionModel().selectedRows()
         if not rows:
@@ -193,13 +193,13 @@ class EmbedComicInfoAction(InterfaceAction):
 
         # Progress dialog
         progress = QProgressDialog(
-            "Embedding ComicInfo.xml...",
+            "Writing ComicInfo.xml...",
             "Cancel",
             0,
             total_books,
             self.gui,
         )
-        progress.setWindowTitle("Embed ComicInfo.xml")
+        progress.setWindowTitle("ComicInfo Writer")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
         progress.setValue(0)
@@ -290,17 +290,20 @@ class EmbedComicInfoAction(InterfaceAction):
         if errors:
             error_dialog(
                 self.gui,
-                "Embedding Finished with Warnings",
+                "Writing Finished with Warnings",
                 "\n".join(report),
                 show=True,
             )
         else:
             info_dialog(
                 self.gui,
-                "Embedding Complete",
+                "ComicInfo Writing Complete",
                 "\n".join(report),
                 show=True,
             )
+
+    # Backward compatibility alias
+    embed_comicinfo_selected = write_comicinfo_selected
 
     def import_comicinfo_selected(self):
         """Read ComicInfo.xml from selected books (root or nested) and update Calibre metadata."""
@@ -506,3 +509,8 @@ class EmbedComicInfoAction(InterfaceAction):
                 "\n".join(report),
                 show=True,
             )
+
+
+# Backward compatibility alias
+EmbedComicInfoAction = ComicInfoWriterAction
+

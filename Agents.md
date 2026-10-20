@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This document serves as a guide for AI agents and developers working on the **Embed ComicInfo.xml** Calibre plugin codebase.
+This document serves as a guide for AI agents and developers working on the **ComicInfo Writer** Calibre plugin codebase.
 
 ---
 
 ## 1. Project Overview
 
-**Embed ComicInfo.xml** is a Calibre plugin designed to embed schema-compliant `ComicInfo.xml` metadata into digital comic archives (`.cbz` and `.cbr`). The metadata follows the [ComicInfo v2.1 Draft Schema](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1) and [Kavita's Comic Metadata Specification](https://wiki.kavitareader.com/guides/metadata/comics/).
+**ComicInfo Writer** is a Calibre plugin designed to write and embed schema-compliant `ComicInfo.xml` metadata into digital comic archives (`.cbz` and `.cbr`). The metadata follows the [ComicInfo v2.1 Draft Schema](https://anansi-project.github.io/docs/comicinfo/schemas/v2.1) and [Kavita's Comic Metadata Specification](https://wiki.kavitareader.com/guides/metadata/comics/).
 
 ### Core Capabilities
 - Mapping Calibre standard and custom columns to ComicInfo metadata tags.
@@ -32,12 +32,12 @@ This document serves as a guide for AI agents and developers working on the **Em
 │   └── test_xml_generator.py    # Unit tests for ComicInfo XML generation and parsing
 ├── .gitignore                   # Ignores build artifacts, __pycache__, and *.zip files
 ├── __init__.py                  # Calibre plugin entry point and metadata definition (version tuple)
-├── build_plugin.py              # Script packaging the plugin into EmbedComicInfo.zip
+├── build_plugin.py              # Script packaging the plugin into ComicInfoWriter.zip
 ├── comic_processor.py           # Core logic: XML generation, archive inspection, atomic file ops
 ├── config.py                    # Calibre JSONConfig storage and preference management
 ├── config_dialog.py             # Qt GUI configuration dialog for settings and column mappings
 ├── kavita_constants.py          # ComicInfo v2.1 and Kavita schema constants and enum values
-├── plugin-import-name-embed_comicinfo.txt  # Calibre plugin import namespace declaration
+├── plugin-import-name-comicinfo_writer.txt  # Calibre plugin import namespace declaration
 ├── LICENSE                      # EUPL v1.2 License
 └── README.md                    # User-facing documentation and installation guide
 ```
@@ -54,17 +54,17 @@ This document serves as a guide for AI agents and developers working on the **Em
 - Always ensure version bumps update this tuple accurately.
 
 ### Calibre Import Namespaces
-Inside Calibre's runtime, plugins are imported using the namespace specified in [`plugin-import-name-embed_comicinfo.txt`](file:///Users/jbudz/Documents/calibre%20comicinfo/plugin-import-name-embed_comicinfo.txt):
+Inside Calibre's runtime, plugins are imported using the namespace specified in [`plugin-import-name-comicinfo_writer.txt`](file:///Users/jbudz/Documents/calibre%20comicinfo/plugin-import-name-comicinfo_writer.txt):
 ```python
 try:
-    from calibre_plugins.embed_comicinfo.config import get_pref
+    from calibre_plugins.comicinfo_writer.config import get_pref
 except ImportError:
     from config import get_pref
 ```
 Always maintain fallback imports so that standalone scripts and unit tests can run outside the full Calibre GUI environment.
 
 ### Distribution Archives
-- `EmbedComicInfo.zip` is **not** tracked in git (ignored in `.gitignore`).
+- `ComicInfoWriter.zip` is **not** tracked in git (ignored in `.gitignore`).
 - Distribution zips are built on demand via [`build_plugin.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/build_plugin.py) and published to GitHub Releases.
 
 ---
@@ -72,7 +72,7 @@ Always maintain fallback imports so that standalone scripts and unit tests can r
 ## 4. Development & Build Commands
 
 ### Building the Plugin ZIP
-To package the plugin into `EmbedComicInfo.zip`:
+To package the plugin into `ComicInfoWriter.zip`:
 ```bash
 python3 build_plugin.py
 ```
@@ -87,7 +87,7 @@ python3 -m unittest discover tests
 ### Installing into Calibre (Local Testing)
 To install the built plugin directly into a local Calibre installation via CLI:
 ```bash
-calibre-customize -a EmbedComicInfo.zip
+calibre-customize -a ComicInfoWriter.zip
 ```
 To run Calibre with debug console output:
 ```bash
@@ -100,6 +100,7 @@ calibre-debug -g
 
 Releases are managed via GitHub Actions:
 - **Workflow File**: [`.github/workflows/release.yml`](file:///Users/jbudz/Documents/calibre%20comicinfo/.github/workflows/release.yml)
+- **Repository**: `https://github.com/Saetron/calibre-comicinfo-writer`
 - **Trigger**: Manual dispatch (`workflow_dispatch`).
 - **Inputs**:
   - `version` *(required)*: Target version string (e.g. `1.0.1` or `v1.0.1`).
@@ -108,9 +109,9 @@ Releases are managed via GitHub Actions:
 - **Workflow Process**:
   1. Validates and parses the version string into integers.
   2. Updates `version = (X, Y, Z)` in [`__init__.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/__init__.py).
-  3. Executes [`build_plugin.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/build_plugin.py) to package `EmbedComicInfo.zip`.
+  3. Executes [`build_plugin.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/build_plugin.py) to package `ComicInfoWriter.zip`.
   4. Commits the updated [`__init__.py`](file:///Users/jbudz/Documents/calibre%20comicinfo/__init__.py), tags the commit (`vX.Y.Z`), and pushes to GitHub.
-  5. Creates a GitHub Release with auto-generated release notes and attaches `EmbedComicInfo.zip`.
+  5. Creates a GitHub Release with auto-generated release notes and attaches `ComicInfoWriter.zip`.
 
 ---
 
