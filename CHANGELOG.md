@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-21
+
 ### Added
 - Full language name resolution in ISO 639-1 normalization (supporting natural names like "English", "Japanese", "French", "German", "Spanish", etc.).
 - Automated GitHub Actions release workflow (`release.yml`) supporting manual version dispatch, tag creation, and asset packaging.
