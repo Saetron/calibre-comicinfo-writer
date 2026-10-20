@@ -136,3 +136,16 @@ To package the plugin into a `.zip` file for distribution:
 python3 build_plugin.py
 ```
 This generates `ComicInfoWriter.zip`.
+
+---
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for details on release history, improvements, and recent changes.
+
+---
+
+## License
+
+This project is licensed under the European Union Public Licence (EUPL v1.2) - see the [`LICENSE`](LICENSE) file for details.
+
