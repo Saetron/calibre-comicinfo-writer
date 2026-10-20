@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to bump to (e.g. 1.0.1 or v1.0.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create as a draft release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bump version in __init__.py
+        id: bump_version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          python - << 'EOF'
+          import os
+          import re
+          import sys
+
+          raw_version = os.environ.get("INPUT_VERSION", "").strip()
+          clean_version = raw_version.lstrip("v").lstrip("V").strip()
+
+          parts = clean_version.split(".")
+          if not all(p.isdigit() for p in parts) or len(parts) < 2:
+              print(f"Error: Invalid version format '{raw_version}'. Expected format like 1.0.1 or v1.0.1")
+              sys.exit(1)
+
+          int_parts = [int(p) for p in parts]
+          tuple_str = f"({int_parts[0]},)" if len(int_parts) == 1 else f"({', '.join(str(p) for p in int_parts)})"
+
+          with open("__init__.py", "r", encoding="utf-8") as f:
+              content = f.read()
+
+          pattern = r"^(\s*version\s*=\s*)\([^\)]*\)"
+          new_content, count = re.subn(pattern, rf"\g<1>{tuple_str}", content, flags=re.MULTILINE)
+          if count != 1:
+              print(f"Error: Expected to replace 1 occurrence of version tuple in __init__.py, but found {count}")
+              sys.exit(1)
+
+          with open("__init__.py", "w", encoding="utf-8") as f:
+              f.write(new_content)
+
+          tag = f"v{clean_version}"
+          print(f"Updated __init__.py version to {tuple_str}")
+          print(f"Release tag: {tag}")
+
+          github_output = os.environ.get("GITHUB_OUTPUT")
+          if github_output:
+              with open(github_output, "a", encoding="utf-8") as f:
+                  f.write(f"version={clean_version}\n")
+                  f.write(f"tag={tag}\n")
+          EOF
+
+      - name: Build plugin package
+        run: |
+          python build_plugin.py
+          if [ ! -f "EmbedComicInfo.zip" ]; then
+            echo "Error: EmbedComicInfo.zip was not generated!"
+            exit 1
+          fi
+
+      - name: Commit and tag new version
+        env:
+          TAG: ${{ steps.bump_version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add __init__.py
+          git commit -m "Bump version to ${TAG}"
+          git tag "${TAG}"
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "${TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.bump_version.outputs.tag }}
+          IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
+          IS_DRAFT: ${{ github.event.inputs.draft }}
+        run: |
+          RELEASE_FLAGS=()
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            RELEASE_FLAGS+=("--prerelease")
+          fi
+          if [ "${IS_DRAFT}" = "true" ]; then
+            RELEASE_FLAGS+=("--draft")
+          fi
+
+          gh release create "${TAG}" EmbedComicInfo.zip \
+            --title "Release ${TAG}" \
+            --generate-notes \
+            "${RELEASE_FLAGS[@]}"
