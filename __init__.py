@@ -18,7 +18,7 @@ class ComicInfoWriterPlugin(InterfaceActionBase):
     )
     supported_platforms = ["windows", "osx", "linux"]
     author = "Saetron"
-    version = (1, 0, 0)
+    version = (1, 1, 0)
     minimum_calibre_version = (6, 0, 0)
 
     # Entry point for the interface action
