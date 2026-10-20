@@ -30,9 +30,10 @@ except ImportError:
 CONFIG_FILE_NAME = "plugins/comicinfo_writer"
 
 # Build default tag mappings from definitions
-DEFAULT_TAG_MAPPINGS = {}
-for tag_name, _type, default_field, _desc, _schema_desc in COMICINFO_TAG_DEFS:
-    DEFAULT_TAG_MAPPINGS[tag_name] = default_field or ""
+DEFAULT_TAG_MAPPINGS = {
+    tag_name: default_field or ""
+    for tag_name, _type, default_field, _desc, _schema_desc in COMICINFO_TAG_DEFS
+}
 
 DEFAULT_CONFIG = {
     # Option: format series index as integer when whole (e.g. 1 instead of 1.0)

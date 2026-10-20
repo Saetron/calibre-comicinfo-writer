@@ -6,8 +6,6 @@ Provides user options for Series Index omission, archive handling,
 and full mapping of custom Calibre fields to ComicInfo v2.0/v2.1 tags.
 """
 
-import copy
-
 try:
     from qt.core import (
         QDialog,
@@ -59,8 +57,7 @@ try:
         set_pref,
         get_tag_mappings,
         set_tag_mappings,
-        reset_to_defaults,
-        DEFAULT_CONFIG,
+        DEFAULT_TAG_MAPPINGS,
     )
 except ImportError:
     try:
@@ -78,8 +75,7 @@ except ImportError:
         set_pref,
         get_tag_mappings,
         set_tag_mappings,
-        reset_to_defaults,
-        DEFAULT_CONFIG,
+        DEFAULT_TAG_MAPPINGS,
     )
 
 
@@ -329,7 +325,6 @@ class ConfigWidget(QWidget):
             schema_desc = self.table.item(row, 2).text().lower()
             match = query in tag_name or query in tag_type or query in schema_desc
             self.table.setRowHidden(row, not match)
-            self.table.setRowHidden(row, not match)
 
     def load_settings(self):
         """Load settings from persistent config into UI widgets."""
@@ -358,10 +353,10 @@ class ConfigWidget(QWidget):
         set_pref("strip_html_comments", self.cb_strip_html.isChecked())
         set_pref("convert_cbr_to_cbz", self.cb_convert_cbr.isChecked())
 
-        mappings = {}
-        for tag_name, combo in self.combo_widgets.items():
-            mappings[tag_name] = combo.currentData() or ""
-
+        mappings = {
+            tag_name: combo.currentData() or ""
+            for tag_name, combo in self.combo_widgets.items()
+        }
         set_tag_mappings(mappings)
 
     def autodetect_mappings(self):
@@ -369,16 +364,32 @@ class ConfigWidget(QWidget):
         matched = 0
         for tag_name, combo in self.combo_widgets.items():
             clean_tag = tag_name.lower().replace(" ", "").replace("_", "")
+            exact_idx = -1
+            partial_custom_idx = -1
+
             for i in range(combo.count()):
                 field_key = combo.itemData(i)
                 if not field_key:
                     continue
-                # Normalize field key (#my_field -> myfield)
+                is_custom = field_key.startswith("#")
                 clean_field = field_key.lstrip("#").lower().replace("_", "").replace("-", "")
-                if clean_field == clean_tag or clean_field in clean_tag or clean_tag in clean_field:
-                    combo.setCurrentIndex(i)
-                    matched += 1
-                    break
+                if clean_field == clean_tag:
+                    # Prefer custom column exact match, otherwise standard field exact match
+                    if is_custom or exact_idx < 0:
+                        exact_idx = i
+                        if is_custom:
+                            break
+                elif (
+                    is_custom
+                    and partial_custom_idx < 0
+                    and (clean_field in clean_tag or clean_tag in clean_field)
+                ):
+                    partial_custom_idx = i
+
+            chosen_idx = exact_idx if exact_idx >= 0 else partial_custom_idx
+            if chosen_idx >= 0:
+                combo.setCurrentIndex(chosen_idx)
+                matched += 1
 
         QMessageBox.information(
             self,
@@ -395,14 +406,10 @@ class ConfigWidget(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm == QMessageBox.StandardButton.Yes:
-            from config import DEFAULT_TAG_MAPPINGS
             for tag_name, combo in self.combo_widgets.items():
                 def_field = DEFAULT_TAG_MAPPINGS.get(tag_name, "")
                 idx = combo.findData(def_field)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
-                else:
-                    combo.setCurrentIndex(0)
+                combo.setCurrentIndex(idx if idx >= 0 else 0)
 
 
 class ConfigDialog(QDialog):

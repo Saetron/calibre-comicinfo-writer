@@ -6,7 +6,6 @@ Adds toolbar button, context menu item, batch processing progress dialog,
 and configuration launcher.
 """
 
-import os
 import traceback
 
 from calibre.gui2 import info_dialog, error_dialog, question_dialog
@@ -164,8 +163,8 @@ class ComicInfoWriterAction(InterfaceAction):
         dlg = ConfigDialog(self.gui, db=db)
         dlg.exec()
 
-    def write_comicinfo_selected(self):
-        """Process all selected books in the active library."""
+    def _get_selected_book_ids(self):
+        """Return selected book IDs or show an info dialog if none are selected."""
         rows = self.gui.library_view.selectionModel().selectedRows()
         if not rows:
             info_dialog(
@@ -174,9 +173,43 @@ class ComicInfoWriterAction(InterfaceAction):
                 "Please select at least one comic book in your library.",
                 show=True,
             )
-            return
+            return []
+        return self.gui.library_view.get_selected_ids() or []
 
-        book_ids = self.gui.library_view.get_selected_ids()
+    def _create_progress_dialog(self, title, initial_label, total_books):
+        """Create and initialize a modal QProgressDialog for batch operations."""
+        progress = QProgressDialog(
+            initial_label,
+            "Cancel",
+            0,
+            total_books,
+            self.gui,
+        )
+        progress.setWindowTitle(title)
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        return progress
+
+    def _show_summary_dialog(self, title_ok, title_err, header_lines, skipped, errors):
+        """Format a batch operation report and display an info or error dialog."""
+        report = list(header_lines)
+        if skipped:
+            report.append(f"\nSkipped ({len(skipped)}):")
+            report.extend(skipped[:10])
+            if len(skipped) > 10:
+                report.append(f"... and {len(skipped) - 10} more.")
+        if errors:
+            report.append(f"\nErrors ({len(errors)}):")
+            report.extend(errors[:5])
+
+        dialog_fn = error_dialog if errors else info_dialog
+        dialog_title = title_err if errors else title_ok
+        dialog_fn(self.gui, dialog_title, "\n".join(report), show=True)
+
+    def write_comicinfo_selected(self):
+        """Process all selected books in the active library."""
+        book_ids = self._get_selected_book_ids()
         total_books = len(book_ids)
         if total_books == 0:
             return
@@ -191,18 +224,9 @@ class ComicInfoWriterAction(InterfaceAction):
             "convert_cbr_to_cbz": get_pref("convert_cbr_to_cbz", False),
         }
 
-        # Progress dialog
-        progress = QProgressDialog(
-            "Writing ComicInfo.xml...",
-            "Cancel",
-            0,
-            total_books,
-            self.gui,
+        progress = self._create_progress_dialog(
+            "ComicInfo Writer", "Writing ComicInfo.xml...", total_books
         )
-        progress.setWindowTitle("ComicInfo Writer")
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
 
         success_count = 0
         converted_count = 0
@@ -213,9 +237,10 @@ class ComicInfoWriterAction(InterfaceAction):
             if progress.wasCanceled():
                 break
 
+            book_title = f"Book ID {book_id}"
             try:
                 mi = db.new_api.get_metadata(book_id)
-                book_title = mi.title or f"Book ID {book_id}"
+                book_title = mi.title or book_title
                 progress.setLabelText(f"Processing ({i+1}/{total_books}): {book_title}")
                 QCoreApplication.processEvents()
 
@@ -263,78 +288,43 @@ class ComicInfoWriterAction(InterfaceAction):
                         )
 
             except Exception as e:
-                err_msg = f"{book_title}: {str(e)}"
-                errors.append(err_msg)
+                errors.append(f"{book_title}: {e}")
                 traceback.print_exc()
 
             progress.setValue(i + 1)
 
         progress.close()
 
-        # Build summary report message
-        report = []
-        report.append(f"Successfully updated: {success_count} book(s)")
+        header_lines = [f"Successfully updated: {success_count} book(s)"]
         if converted_count > 0:
-            report.append(f"Converted from CBR to CBZ: {converted_count} book(s)")
+            header_lines.append(f"Converted from CBR to CBZ: {converted_count} book(s)")
 
-        if skipped_no_comic:
-            report.append(f"\nSkipped ({len(skipped_no_comic)}):")
-            report.extend(skipped_no_comic[:10])
-            if len(skipped_no_comic) > 10:
-                report.append(f"... and {len(skipped_no_comic) - 10} more.")
-
-        if errors:
-            report.append(f"\nErrors ({len(errors)}):")
-            report.extend(errors[:5])
-
-        if errors:
-            error_dialog(
-                self.gui,
-                "Writing Finished with Warnings",
-                "\n".join(report),
-                show=True,
-            )
-        else:
-            info_dialog(
-                self.gui,
-                "ComicInfo Writing Complete",
-                "\n".join(report),
-                show=True,
-            )
+        self._show_summary_dialog(
+            "ComicInfo Writing Complete",
+            "Writing Finished with Warnings",
+            header_lines,
+            skipped_no_comic,
+            errors,
+        )
 
     # Backward compatibility alias
     embed_comicinfo_selected = write_comicinfo_selected
 
     def import_comicinfo_selected(self):
         """Read ComicInfo.xml from selected books (root or nested) and update Calibre metadata."""
-        rows = self.gui.library_view.selectionModel().selectedRows()
-        if not rows:
-            info_dialog(
-                self.gui,
-                "No Books Selected",
-                "Please select at least one comic book in your library.",
-                show=True,
-            )
-            return
-
-        book_ids = self.gui.library_view.get_selected_ids()
-        if not book_ids:
+        book_ids = self._get_selected_book_ids()
+        total_books = len(book_ids)
+        if total_books == 0:
             return
 
         db = self.gui.current_db
         mappings = get_tag_mappings()
 
-        progress = QProgressDialog(
+        progress = self._create_progress_dialog(
+            "Import ComicInfo.xml Metadata",
             "Reading ComicInfo.xml metadata...",
-            "Cancel",
-            0,
-            len(book_ids),
-            self.gui,
+            total_books,
         )
-        progress.setWindowTitle("Import ComicInfo.xml Metadata")
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
 
         success_count = 0
         updated_ids = []
@@ -345,10 +335,11 @@ class ComicInfoWriterAction(InterfaceAction):
             if progress.wasCanceled():
                 break
 
+            book_title = f"Book ID {book_id}"
             try:
                 mi = db.new_api.get_metadata(book_id)
-                book_title = mi.title or f"Book ID {book_id}"
-                progress.setLabelText(f"Reading ({i+1}/{len(book_ids)}): {book_title}")
+                book_title = mi.title or book_title
+                progress.setLabelText(f"Reading ({i+1}/{total_books}): {book_title}")
                 QCoreApplication.processEvents()
 
                 if not db.has_format(book_id, "CBZ", index_is_id=True):
@@ -357,7 +348,7 @@ class ComicInfoWriterAction(InterfaceAction):
                     continue
 
                 cbz_path = db.format_abspath(book_id, "CBZ", index_is_id=True)
-                xml_bytes, found_path = find_comicinfo_in_cbz(cbz_path)
+                xml_bytes, _found_path = find_comicinfo_in_cbz(cbz_path)
                 if not xml_bytes:
                     skipped.append(f"• {book_title} (no ComicInfo.xml found)")
                     progress.setValue(i + 1)
@@ -376,7 +367,7 @@ class ComicInfoWriterAction(InterfaceAction):
                 success_count += 1
 
             except Exception as e:
-                errors.append(f"{book_title}: {str(e)}")
+                errors.append(f"{book_title}: {e}")
                 traceback.print_exc()
 
             progress.setValue(i + 1)
@@ -386,66 +377,32 @@ class ComicInfoWriterAction(InterfaceAction):
         if updated_ids:
             self.gui.library_view.model().refresh_ids(updated_ids)
 
-        report = [f"Successfully updated metadata for {success_count} book(s)."]
-        if skipped:
-            report.append(f"\nSkipped ({len(skipped)}):")
-            report.extend(skipped[:10])
-            if len(skipped) > 10:
-                report.append(f"... and {len(skipped) - 10} more.")
-        if errors:
-            report.append(f"\nErrors ({len(errors)}):")
-            report.extend(errors[:5])
-
-        if errors:
-            error_dialog(
-                self.gui,
-                "Import Finished with Warnings",
-                "\n".join(report),
-                show=True,
-            )
-        else:
-            info_dialog(
-                self.gui,
-                "Import Complete",
-                "\n".join(report),
-                show=True,
-            )
+        self._show_summary_dialog(
+            "Import Complete",
+            "Import Finished with Warnings",
+            [f"Successfully updated metadata for {success_count} book(s)."],
+            skipped,
+            errors,
+        )
 
     def remove_comicinfo_selected(self):
         """Remove all ComicInfo.xml files (root and nested) from selected books' archives."""
-        rows = self.gui.library_view.selectionModel().selectedRows()
-        if not rows:
-            info_dialog(
-                self.gui,
-                "No Books Selected",
-                "Please select at least one comic book in your library.",
-                show=True,
-            )
-            return
-
-        book_ids = self.gui.library_view.get_selected_ids()
-        if not book_ids:
+        book_ids = self._get_selected_book_ids()
+        total_books = len(book_ids)
+        if total_books == 0:
             return
 
         if not question_dialog(
             self.gui,
             "Remove ComicInfo.xml",
-            f"Are you sure you want to remove all ComicInfo.xml files (including any nested in subdirectories) from the {len(book_ids)} selected book(s)?",
+            f"Are you sure you want to remove all ComicInfo.xml files (including any nested in subdirectories) from the {total_books} selected book(s)?",
         ):
             return
 
         db = self.gui.current_db
-        progress = QProgressDialog(
-            "Removing ComicInfo.xml...",
-            "Cancel",
-            0,
-            len(book_ids),
-            self.gui,
+        progress = self._create_progress_dialog(
+            "Remove ComicInfo.xml", "Removing ComicInfo.xml...", total_books
         )
-        progress.setWindowTitle("Remove ComicInfo.xml")
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
 
         success_count = 0
         total_removed_files = 0
@@ -456,10 +413,11 @@ class ComicInfoWriterAction(InterfaceAction):
             if progress.wasCanceled():
                 break
 
+            book_title = f"Book ID {book_id}"
             try:
                 mi = db.new_api.get_metadata(book_id)
-                book_title = mi.title or f"Book ID {book_id}"
-                progress.setLabelText(f"Cleaning ({i+1}/{len(book_ids)}): {book_title}")
+                book_title = mi.title or book_title
+                progress.setLabelText(f"Cleaning ({i+1}/{total_books}): {book_title}")
                 QCoreApplication.processEvents()
 
                 if not db.has_format(book_id, "CBZ", index_is_id=True):
@@ -476,39 +434,20 @@ class ComicInfoWriterAction(InterfaceAction):
                     skipped.append(f"• {book_title} (no ComicInfo.xml to remove)")
 
             except Exception as e:
-                errors.append(f"{book_title}: {str(e)}")
+                errors.append(f"{book_title}: {e}")
                 traceback.print_exc()
 
             progress.setValue(i + 1)
 
         progress.close()
 
-        report = [
-            f"Cleaned {success_count} book(s) (removed {total_removed_files} ComicInfo.xml file(s))."
-        ]
-        if skipped:
-            report.append(f"\nSkipped ({len(skipped)}):")
-            report.extend(skipped[:10])
-            if len(skipped) > 10:
-                report.append(f"... and {len(skipped) - 10} more.")
-        if errors:
-            report.append(f"\nErrors ({len(errors)}):")
-            report.extend(errors[:5])
-
-        if errors:
-            error_dialog(
-                self.gui,
-                "Removal Finished with Warnings",
-                "\n".join(report),
-                show=True,
-            )
-        else:
-            info_dialog(
-                self.gui,
-                "Removal Complete",
-                "\n".join(report),
-                show=True,
-            )
+        self._show_summary_dialog(
+            "Removal Complete",
+            "Removal Finished with Warnings",
+            [f"Cleaned {success_count} book(s) (removed {total_removed_files} ComicInfo.xml file(s))."],
+            skipped,
+            errors,
+        )
 
 
 # Backward compatibility alias
