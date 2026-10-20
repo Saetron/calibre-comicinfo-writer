@@ -17,7 +17,7 @@ class ComicInfoWriterPlugin(InterfaceActionBase):
         "and option to omit series index numbers."
     )
     supported_platforms = ["windows", "osx", "linux"]
-    author = "ComicInfo Contributor"
+    author = "Saetron"
     version = (1, 0, 0)
     minimum_calibre_version = (6, 0, 0)
 

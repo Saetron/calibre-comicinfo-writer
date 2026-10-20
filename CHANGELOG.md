@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Streamlined CBZ archive writing using single-pass inspection and atomic temporary file replacement.
 - Deduplicated batch UI operation helpers and progress feedback in `ui.py`.
 - Improved column auto-detection and import resilience in configuration dialog (`config_dialog.py`).
+- Updated plugin author metadata to Saetron.
 
 ### Fixed
 - Precompiled regular expressions at module level for language normalization and XML tag cleanup to improve processing throughput.
